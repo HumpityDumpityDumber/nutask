@@ -1,0 +1,43 @@
+#!/usr/bin/env nu
+ 
+let tasks = if ('./tasks.nuon' | path exists) {
+  open ./tasks.nuon
+} else { null }
+
+let dailyTasks = if ('./daily-tasks.nuon' | path exists) {
+  open ./daily-tasks.nuon
+} else { null }
+
+def saveTask [name: string, length: float, file: string, daily?: bool] {
+  let t = (if $daily != null {{ name: $name length: $length daily: $daily}} else {{ name: $name length: $length }})
+  let updated = ((if $daily != null { $tasks } else { $dailyTasks }) | append $t)
+  $updated | save -f $file
+}
+
+def main [] { help main }
+
+# create a task
+def "main new" [name: string, length: float, --daily, --file: string] {
+  if $daily {
+    saveTask $name $length "./daily-tasks.nuon"
+  } else {
+    saveTask $name $length ($file | default "./tasks.nuon") false
+  }
+}
+
+# list tasks
+def "main list" [--daily] {
+  if $daily {
+    $dailyTasks | default $"(ansi red_bold)no tasks to show !(ansi reset)"
+  } else {
+    $tasks | default $"(ansi red_bold)no tasks to show !(ansi reset)"
+  }
+}
+
+# reset the task list
+def "main reset" [] {
+  $tasks | where daily == false | save -f "./tasks.nuon"
+  for item in $dailyTasks {
+    saveTask $item.name $item.length "./tasks.nuon" true
+  }
+}
