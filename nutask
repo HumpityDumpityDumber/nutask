@@ -8,6 +8,7 @@ def getTasks [file:string] {
 
 let dailyTasks = { getTasks "./daily-tasks.nuon" }
 let tasks = { getTasks "./tasks.nuon" }
+let snoozedTasks = { getTasks "./snoozed-tasks.nuon" }
 
 def saveTask [name: string, length: duration, file: string, daily?: bool] {
   let t = (match $daily { null => { name: $name length: $length } _ => { name: $name length: $length daily: $daily} })
@@ -27,24 +28,38 @@ def "main add" [name: string, length: duration, --daily] {
 }
 
 # list tasks
-def "main list" [--daily] {
-  if $daily {
-    do $dailyTasks | default $"(ansi red_bold)no tasks to show !(ansi reset)"
-  } else {
-    do $tasks | default $"(ansi red_bold)no tasks to show !(ansi reset)"
+def "main list" [
+  --section (-s): string
+  ] {
+  match $section {
+    "daily" => (do $dailyTasks | default $"(ansi red_bold)no tasks to show !(ansi reset)")
+  
+    "snoozed" => (do $snoozedTasks | default $"(ansi red_bold)no tasks to show !(ansi reset)")
+
+    "tasks" => (do $tasks | default $"(ansi red_bold)no tasks to show !(ansi reset)")
+
+    null => (do $tasks | default $"(ansi red_bold)no tasks to show !(ansi reset)")
+
+    _ => $"(ansi red_bold)that section doesnt exist !(ansi reset)"
   }
 }
 
-# reset the task list
+# reset the task list; resets daily tasks, and adds snoozed tasks 
 def "main reset" [] {
-  do $tasks | where daily == false | save -f "./tasks.nuon"
-  for item in $dailyTasks {
+  do $tasks | where daily == false | collect | save -f "./tasks.nuon"
+  for item in (do $dailyTasks) {
     saveTask $item.name $item.length "./tasks.nuon" true
   }
+  for item in (do $snoozedTasks) {
+    saveTask $item.name $item.length "./tasks.nuon" true
+  }
+  if ("./snoozed-tasks.nuon" | path exists) { rm "./snoozed-tasks.nuon" }
 }
 
-def "main start" [name: string] {
+# snooze a task; snoozed tasks are added back on next reset
+def "main snooze" [name: string] {
   let newList = do $tasks | where name != $name
-  sleep (do $tasks | where name == $name | get length)
+  let snoozedTask = do $tasks | where name == $name | reject daily
+  $snoozedTask | save -f ./snoozed-tasks.nuon
   $newList | save -f "./tasks.nuon"
 }
