@@ -16,12 +16,12 @@ def saveTask [name: string, length: float, file: string, daily?: bool] {
 
 def main [] { help main }
 
-# create a task
-def "main new" [name: string, length: float, --daily, --file: string] {
+# create a new task
+def "main add" [name: string, length: float, --daily] {
   if $daily {
     saveTask $name $length "./daily-tasks.nuon"
   } else {
-    saveTask $name $length ($file | default "./tasks.nuon") false
+    saveTask $name $length "./tasks.nuon" false
   }
 }
 
