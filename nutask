@@ -3,7 +3,7 @@
 def getTasks [file:string] {
   if ($file | path exists) {
     open $file
-  } else { null }
+  } else { [] }
 }
 
 let dailyTasks = { getTasks "./daily-tasks.nuon" }
@@ -32,13 +32,13 @@ def "main list" [
   --section (-s): string
   ] {
   match $section {
-    "daily" => (do $dailyTasks | default $"(ansi red_bold)no tasks to show !(ansi reset)")
+    "daily" => (do $dailyTasks)
   
-    "snoozed" => (do $snoozedTasks | default $"(ansi red_bold)no tasks to show !(ansi reset)")
+    "snoozed" => (do $snoozedTasks)
 
-    "tasks" => (do $tasks | default $"(ansi red_bold)no tasks to show !(ansi reset)")
+    "tasks" => (do $tasks)
 
-    null => (do $tasks | default $"(ansi red_bold)no tasks to show !(ansi reset)")
+    null => (do $tasks)
 
     _ => $"(ansi red_bold)that section doesnt exist !(ansi reset)"
   }
@@ -61,5 +61,10 @@ def "main snooze" [name: string] {
   let newList = do $tasks | where name != $name
   let snoozedTask = do $tasks | where name == $name | reject daily
   $snoozedTask | save -f ./snoozed-tasks.nuon
+  $newList | save -f "./tasks.nuon"
+}
+
+def "main remove" [name: string] {
+  let newList = do $tasks | where name != $name
   $newList | save -f "./tasks.nuon"
 }
