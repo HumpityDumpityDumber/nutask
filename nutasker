@@ -118,5 +118,5 @@ def "main remove" [name: string] {
 # add and push all changes to github
 def "push" [] {
   let script_dir = $env.CURRENT_FILE | path dirname
-  nu -c $'cd ($script_dir); git add --all; git push'
+  nu -c $'cd ($script_dir); git add --all; git commitp; git push'
 }
