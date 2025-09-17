@@ -1,8 +1,8 @@
 #!/usr/bin/env nu
 
 def getDataDir [] {
-  let xdg_data_home = $env.XDG_DATA_HOME? | default ($env.HOME | path join ".local" "share")
-  let nutask_dir = $xdg_data_home | path join "nutask"
+  let script_dir = $env.CURRENT_FILE | path dirname
+  let nutask_dir = $script_dir | path join "store"
   if not ($nutask_dir | path exists) {
     mkdir $nutask_dir
   }
