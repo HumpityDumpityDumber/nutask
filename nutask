@@ -26,11 +26,44 @@ let dailyTasks = { getTasks ($data_dir | path join "daily-tasks.nuon") }
 let tasks = { getTasks ($data_dir | path join "tasks.nuon") }
 let snoozedTasks = { getTasks ($data_dir | path join "snoozed-tasks.nuon") }
 
+# generate password for encryption
+def "main generate-keys" [] {
+  let script_dir = $env.CURRENT_FILE | path dirname
+  let password_file = ($script_dir | path join "password.secret")
+  ^openssl rand -base64 32 | save $password_file
+  print $"Password generated: ($password_file)"
+}
+
+# encrypt the store folder
+def "main encrypt" [] {
+  let script_dir = $env.CURRENT_FILE | path dirname
+  let password_file = ($script_dir | path join "password.secret")
+  if not ($password_file | path exists) {
+    print $"(ansi red_bold)No password found. Run 'generate-keys' first.(ansi reset)"
+    return
+  }
+  cd $script_dir
+  ^tar czf - store | ^openssl enc -aes-256-cbc -pbkdf2 -salt -pass $"file:($password_file)" -out store.enc
+  print "Store encrypted to store.enc"
+}
+
+# decrypt the store folder
+def "main decrypt" [] {
+  let script_dir = $env.CURRENT_FILE | path dirname
+  let password_file = ($script_dir | path join "password.secret")
+  if not ($password_file | path exists) {
+    print $"(ansi red_bold)No password found.(ansi reset)"
+    return
+  }
+  cd $script_dir
+  ^openssl enc -aes-256-cbc -pbkdf2 -d -salt -pass $"file:($password_file)" -in store.enc | ^tar xzf -
+  print "Store decrypted from store.enc"
+}
 
 def main [] { help main }
 
 # create a new task
-def "main add" [name: string, length: duration, --daily] {
+def "main add" [name: string, length: duration, --daily (-d)] {
   if $daily {
     saveTask $name $length ($data_dir | path join "daily-tasks.nuon")
   } else {
