@@ -109,7 +109,14 @@ def "main snooze" [name: string] {
   $newList | save -f ($data_dir | path join "tasks.nuon")
 }
 
+# remove a task by name
 def "main remove" [name: string] {
   let newList = do $tasks | where name != $name
   $newList | save -f ($data_dir | path join "tasks.nuon")
+}
+
+# add and push all changes to github
+def "push" [] {
+  let script_dir = $env.CURRENT_FILE | path dirname
+  nu -c $'cd ($script_dir); git add --all; git push'
 }
