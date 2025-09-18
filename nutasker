@@ -109,6 +109,40 @@ def "main snooze" [name: string] {
   $newList | save -f ($data_dir | path join "tasks.nuon")
 }
 
+# execute a task with progress bar and remove when done
+def "main do" [name: string] {
+  let task = (do $tasks | where name == $name | first)
+  if ($task | is-empty) {
+    print $"(ansi red_bold)Task '($name)' not found.(ansi reset)"
+    return
+  }
+  
+  print $"(ansi green_bold)Starting: ($name) (($task.length))(ansi reset)"
+  
+  let duration_ms = ($task.length | into int) / 1_000_000
+  let start = (date now)
+  
+  loop {
+    let elapsed = (((date now) - $start) | into int) / 1_000_000
+    let progress = ($elapsed * 100) / $duration_ms
+    if $progress >= 100 { break }
+    
+    let filled = ($progress / 2) | math floor
+    let remaining = ((($duration_ms - $elapsed) / 1000) | math floor) * 1sec
+    let bar = ((0..<$filled | each { "█" } | str join) + (0..<(50 - $filled) | each { "░" } | str join))
+    
+    print -n $"\r(ansi cyan)[($bar)] ($progress | math round -p 1)% - ($remaining)"
+    sleep 100ms
+  }
+  
+  print $"\r(ansi green)[██████████████████████████████████████████████████] 100.0% - Complete!     (ansi reset)"
+  print $"(ansi green_bold)Press any key to finish...(ansi reset)"
+  input listen --types [key] | ignore
+  
+  main remove $name
+  print $"(ansi green)✓ ($name) completed!(ansi reset)"
+}
+
 # remove a task by name
 def "main remove" [name: string] {
   let newList = do $tasks | where name != $name
