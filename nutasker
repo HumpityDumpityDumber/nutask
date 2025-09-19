@@ -103,7 +103,10 @@ def "main reset" [] {
 def "main snooze" [name: string] {
   let newList = do $tasks | where name != $name
   let snoozedTask = do $tasks | where name == $name | reject daily
-  $snoozedTask | save -f ($data_dir | path join "snoozed-tasks.nuon")
+  let snoozed_file = ($data_dir | path join "snoozed-tasks.nuon")
+  let existingSnoozed = getTasks $snoozed_file
+  let updatedSnoozed = ($existingSnoozed | append $snoozedTask)
+  $updatedSnoozed | save -f $snoozed_file
   $newList | save -f ($data_dir | path join "tasks.nuon")
 }
 
