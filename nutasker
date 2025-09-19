@@ -1,7 +1,8 @@
 #!/usr/bin/env nu
 
+let script_dir = $env.CURRENT_FILE | path dirname
+
 def getDataDir [] {
-  let script_dir = $env.CURRENT_FILE | path dirname
   let nutask_dir = $script_dir | path join "store"
   if not ($nutask_dir | path exists) {
     mkdir $nutask_dir
@@ -28,15 +29,13 @@ let snoozedTasks = { getTasks ($data_dir | path join "snoozed-tasks.nuon") }
 
 # generate password for encryption
 def "main generate-keys" [] {
-  let script_dir = $env.CURRENT_FILE | path dirname
   let password_file = ($script_dir | path join "password.secret")
-  ^openssl rand -base64 32 | save $password_file
+  random chars --length 1kb | save $password_file
   print $"Password generated: ($password_file)"
 }
 
 # encrypt the store folder
 def "main encrypt" [] {
-  let script_dir = $env.CURRENT_FILE | path dirname
   let password_file = ($script_dir | path join "password.secret")
   if not ($password_file | path exists) {
     print $"(ansi red_bold)No password found. Run 'generate-keys' first.(ansi reset)"
@@ -49,7 +48,6 @@ def "main encrypt" [] {
 
 # decrypt the store folder
 def "main decrypt" [] {
-  let script_dir = $env.CURRENT_FILE | path dirname
   let password_file = ($script_dir | path join "password.secret")
   if not ($password_file | path exists) {
     print $"(ansi red_bold)No password found.(ansi reset)"
@@ -113,7 +111,7 @@ def "main snooze" [name: string] {
 def "main do" [name: string] {
   let task = (do $tasks | where name == $name | first)
   if ($task | is-empty) {
-    print $"(ansi red_bold)Task '($name)' not found.(ansi reset)"
+    print $"(ansi red_bold)Task '($name)' not found. (ansi reset)"
     return
   }
   
@@ -151,11 +149,9 @@ def "main remove" [name: string] {
 
 # add and push all changes to github
 def "main push" [] {
-  let script_dir = $env.CURRENT_FILE | path dirname
   cd ($script_dir); git add --all; git commit -m $"add tasks"; git push
 }
 
 def "main update" [] {
-  let script_dir = $env.CURRENT_FILE | path dirname
   cd ($script_dir); git pull
 }
