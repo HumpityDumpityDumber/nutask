@@ -1,6 +1,9 @@
 #!/usr/bin/env nu
 
+# set script directory
 let script_dir = $env.CURRENT_FILE | path dirname
+
+# --- inner functions ---
 
 def getDataDir [] {
   let nutask_dir = $script_dir | path join "store"
@@ -22,10 +25,17 @@ def saveTask [name: string, length: duration, file: string, daily?: bool] {
   $updated | save -f $file
 }
 
+# --- set variables ---
 let data_dir = getDataDir
 let dailyTasks = { getTasks ($data_dir | path join "daily-tasks.nuon") }
 let tasks = { getTasks ($data_dir | path join "tasks.nuon") }
 let snoozedTasks = { getTasks ($data_dir | path join "snoozed-tasks.nuon") }
+
+# --- main functions ---
+
+def main [] { help main }
+
+# --- encryption functions ---
 
 # generate password for encryption
 def "main generate-keys" [] {
@@ -58,7 +68,7 @@ def "main decrypt" [] {
   print "Store decrypted from store.enc"
 }
 
-def main [] { help main }
+# --- task functions ---
 
 # create a new task
 def "main add" [name: string, length: duration, --daily (-d)] {
@@ -67,6 +77,26 @@ def "main add" [name: string, length: duration, --daily (-d)] {
   } else {
     saveTask $name $length ($data_dir | path join "tasks.nuon") false
   }
+}
+
+# remove a task by name
+def "main remove" [name: any] {
+  let task_list = do $tasks
+    let task_name = (
+      if ($name | describe) == "int" {
+        let idx = $name
+        if $idx < 0 or $idx >= ($task_list | length) {
+          print $"(ansi red_bold)Index ($idx) out of range.(ansi reset)"
+          return
+        }
+        ($task_list | get $idx | get name)
+      } else {
+        $name
+      }
+    )
+
+    let newList = $task_list | where name != $task_name
+    $newList | save -f ($data_dir | path join "tasks.nuon")
 }
 
 # list tasks
@@ -100,55 +130,80 @@ def "main reset" [] {
 }
 
 # snooze a task; snoozed tasks are added back on next reset
-def "main snooze" [name: string] {
-  let newList = do $tasks | where name != $name
-  let snoozedTask = do $tasks | where name == $name | reject daily
-  let snoozed_file = ($data_dir | path join "snoozed-tasks.nuon")
-  let existingSnoozed = getTasks $snoozed_file
-  let updatedSnoozed = ($existingSnoozed | append $snoozedTask)
-  $updatedSnoozed | save -f $snoozed_file
-  $newList | save -f ($data_dir | path join "tasks.nuon")
+def "main snooze" [name: any] {
+  let task_list = do $tasks
+    let task_name = (
+      if ($name | describe) == "int" {
+        let idx = $name
+        if $idx < 0 or $idx >= ($task_list | length) {
+          print $"(ansi red_bold)Index ($idx) out of range.(ansi reset)"
+          return
+        }
+        ($task_list | get $idx | get name)
+      } else {
+        $name
+      }
+    )
+
+    let newList = $task_list | where name != $task_name
+    let snoozedTask = $task_list | where name == $task_name | reject daily
+
+    let snoozed_file = ($data_dir | path join "snoozed-tasks.nuon")
+    let existingSnoozed = getTasks $snoozed_file
+    let updatedSnoozed = ($existingSnoozed | append $snoozedTask)
+
+    $updatedSnoozed | save -f $snoozed_file
+    $newList | save -f ($data_dir | path join "tasks.nuon")
 }
 
 # execute a task with progress bar and remove when done
-def "main do" [name: string] {
-  let task = (do $tasks | where name == $name | first)
-  if ($task | is-empty) {
-    print $"(ansi red_bold)Task '($name)' not found. (ansi reset)"
-    return
-  }
-  
-  print $"(ansi green_bold)Starting: ($name) (($task.length))(ansi reset)"
-  
-  let duration_ms = ($task.length | into int) / 1_000_000
-  let start = (date now)
-  
-  loop {
-    let elapsed = (((date now) - $start) | into int) / 1_000_000
-    let progress = ($elapsed * 100) / $duration_ms
-    if $progress >= 100 { break }
-    
-    let filled = ($progress / 2) | math floor
-    let remaining = ((($duration_ms - $elapsed) / 1000) | math floor) * 1sec
-    let bar = ((0..<$filled | each { "█" } | str join) + (0..<(50 - $filled) | each { "░" } | str join))
-    
-    print -n $"\r(ansi cyan)[($bar)] ($progress | math round -p 1)% - ($remaining)"
-    sleep 100ms
-  }
-  
-  print $"\r(ansi green)[██████████████████████████████████████████████████] 100.0% - Complete!     (ansi reset)"
-  print $"(ansi green_bold)Press any key to finish...(ansi reset)"
-  input listen --types [key] | ignore
-  
-  main remove $name
-  print $"(ansi green)✓ ($name) completed!(ansi reset)"
+def "main do" [name: any] {
+  let task_list = do $tasks
+    let task_name = (
+      if ($name | describe) == "int" {
+        let idx = $name
+        if $idx < 0 or $idx >= ($task_list | length) {
+          print $"(ansi red_bold)Index ($idx) out of range.(ansi reset)"
+          return
+        }
+        ($task_list | get $idx | get name)
+      } else {
+        $name
+      }
+    )
+
+    let task = ($task_list | where name == $task_name | first)
+
+    if ($task | is-empty) {
+      print $"(ansi red_bold)Task '($task_name)' not found. (ansi reset)"
+      return
+    }
+
+    print $"(ansi green_bold)Starting: ($task_name) (($task.length))(ansi reset)"
+
+    let duration_ms = ($task.length | into int) / 1_000_000
+    let start = (date now)
+
+    loop {
+      let elapsed = (((date now) - $start) | into int) / 1_000_000
+      let progress = ($elapsed * 100) / $duration_ms
+      if $progress >= 100 { break }
+      let filled = ($progress / 2) | math floor
+      let remaining = ((($duration_ms - $elapsed) / 1000) | math floor) * 1sec
+      let bar = ((0..<$filled | each { "█" } | str join) + (0..<(50 - $filled) | each { "░" } | str join))
+      print -n $"\r(ansi cyan)[($bar)] ($progress | math round -p 1)% - ($remaining)"
+      sleep 100ms
+    }
+
+    print $"\r(ansi green)[██████████████████████████████████████████████████] 100.0% - Complete!     (ansi reset)"
+    print $"(ansi green_bold)Press any key to finish...(ansi reset)"
+    input listen --types [key] | ignore
+
+    main remove $task_name
+    print $"(ansi green)✓ ($task_name) completed!(ansi reset)"
 }
 
-# remove a task by name
-def "main remove" [name: string] {
-  let newList = do $tasks | where name != $name
-  $newList | save -f ($data_dir | path join "tasks.nuon")
-}
+# --- github interaction functions ---
 
 # add and push all changes to github
 def "main push" [] {
