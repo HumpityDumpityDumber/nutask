@@ -213,3 +213,13 @@ def "main push" [] {
 def "main update" [] {
   cd ($script_dir); git pull
 }
+
+def "main auto-push" [] {
+  main encrypt
+  main push
+}
+
+def "main auto-update" [] {
+  main update
+  main decrypt
+}
